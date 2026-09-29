@@ -8,6 +8,7 @@ set(TARGET_SRC
     FeatureTests.cpp
     ImageUtilsTests.cpp
     PathTests.cpp
+    PagedNodeTests.cpp
     ImageLayerTests.cpp
     SpatialReferenceTests.cpp
     ThreadingTests.cpp)
