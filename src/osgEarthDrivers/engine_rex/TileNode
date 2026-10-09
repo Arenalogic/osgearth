@@ -11,6 +11,7 @@
 #include "LoadTileData"
 #include <osgEarth/Threading>
 #include <array>
+#include <atomic>
 
 namespace osg {
     class CullStack;
@@ -192,11 +193,18 @@ namespace osgEarth { namespace REX
 
         using LoadQueue = std::queue<LoadTileDataOperationPtr>;
         Mutexed<LoadQueue> _loadQueue;
-        unsigned _loadsInQueue = 0;
-        const CreateTileManifest* _nextLoadManifestPtr = nullptr;
+        // Snapshot of the load queue, written under _loadQueue's mutex and read
+        // without it by the cull threads (one per camera). The cull path must not
+        // dereference anything owned by the queue: another camera's cull can pop
+        // it at any moment (TileNode::load).
+        std::atomic<unsigned> _loadsInQueue { 0u };
+        std::atomic<bool> _nextLoadProgressive { true }; // true: queue empty or next load progressive
+
+        //! Refresh the snapshot above. Call only with _loadQueue's mutex held.
+        void updateLoadQueueState_locked();
 
         bool dirty() const {
-            return _loadsInQueue > 0;
+            return _loadsInQueue.load(std::memory_order_relaxed) > 0u;
         }
 
         bool nextLoadIsProgressive() const;

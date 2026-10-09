@@ -287,11 +287,7 @@ TileNode::refreshLayers(const CreateTileManifest& manifest)
 
     _loadQueue.lock();
     _loadQueue.push(r);
-    _loadsInQueue = _loadQueue.size();
-    if (_loadsInQueue > 0)
-        _nextLoadManifestPtr = &_loadQueue.front()->_manifest;
-    else
-        _nextLoadManifestPtr = nullptr;
+    updateLoadQueueState_locked();
     _loadQueue.unlock();
 }
 
@@ -1327,11 +1323,7 @@ TileNode::load(TerrainCuller* culler)
             // (We can't merge here in the CULL traversal)
             _context->getMerger()->merge(op, *culler);
             _loadQueue.pop();
-            _loadsInQueue = _loadQueue.size();
-            if (!_loadQueue.empty())
-                _nextLoadManifestPtr = &_loadQueue.front()->_manifest;
-            else
-                _nextLoadManifestPtr = nullptr;
+            updateLoadQueueState_locked();
         }
     }
 }
@@ -1478,10 +1470,19 @@ TileNode::updateNormalMap()
 //    return _context->options();
 //}
 
+void
+TileNode::updateLoadQueueState_locked()
+{
+    _loadsInQueue = (unsigned)_loadQueue.size();
+    _nextLoadProgressive = _loadQueue.empty() ?
+        true :
+        !_loadQueue.front()->_manifest.progressive().isSetTo(false);
+}
+
 bool
 TileNode::nextLoadIsProgressive() const
 {
     return
-        (_context->options().getProgressive()) &&
-        (_nextLoadManifestPtr == nullptr) || (!_nextLoadManifestPtr->progressive().isSetTo(false));
+        _context->options().getProgressive() &&
+        _nextLoadProgressive.load(std::memory_order_relaxed);
 }
