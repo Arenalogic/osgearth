@@ -3,6 +3,7 @@
 
 layout(vertices=3) out;
 
+uniform mat4 osg_ModelViewMatrix;
 uniform float oe_terrain_tess;
 uniform float oe_terrain_tess_range;
 
@@ -30,7 +31,7 @@ void oe_rex_TCS()
         for (int i = 2; i >= 0; --i)
         {
             VP_LoadVertex(i);
-            v[i] = (gl_ModelViewMatrix * (vp_Vertex + vec4(vp_Normal * oe_terrain_getElevation(), 0.0))).xyz;
+            v[i] = (osg_ModelViewMatrix * (vp_Vertex + vec4(vp_Normal * oe_terrain_getElevation(), 0.0))).xyz;
             d[i] = 1.0;
 #ifdef LIFEMAP_TEX
             d[i] = texture(LIFEMAP_TEX, (LIFEMAP_MAT * oe_layer_tilec).st).r; // more rugged = more tessellated

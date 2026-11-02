@@ -11,6 +11,7 @@
 #include <osgEarth/ResampleFilter>
 #include <osgEarth/TextureArena>
 #include <osgEarth/Math>
+#include <osgEarth/GLUtils>
 #include <osgDB/ReadFile>
 #include <osgUtil/SmoothingVisitor>
 #include <osg/CullFace>
@@ -1669,7 +1670,7 @@ namespace
                 ShaderLoader::load(vp, decal_shaders);
                 vp->setName("Road Decals");
 
-                ss->setAttributeAndModes(new osg::Depth(osg::Depth::LEQUAL, 0, 1, false), 1);
+                ss->setAttributeAndModes(DepthConvention::world(false), 1);
             }
         }
 

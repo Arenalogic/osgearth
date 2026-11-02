@@ -446,7 +446,7 @@ AnnotationUtils::installTwoPassAlpha(osg::Node* node)
   // next, create a group for the first pass (backfaces only):
   osg::Group* backPass = new osg::Group();
   backPass->getOrCreateStateSet()->setAttributeAndModes( new osg::CullFace(osg::CullFace::FRONT), 1 );
-  backPass->getOrCreateStateSet()->setAttributeAndModes( new osg::Depth(osg::Depth::LEQUAL,0,1,false), 1);
+  backPass->getOrCreateStateSet()->setAttributeAndModes( DepthConvention::world(false), 1);
   g2->addChild( backPass );
 
   // and a group for the front-face pass:

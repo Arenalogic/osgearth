@@ -18,6 +18,7 @@
 #include <osg/Texture2D>
 #include <osg/BindImageTexture>
 #include <osg/LineStipple>
+#include <atomic>
 
 #ifdef OSG_GL_FIXED_FUNCTION_AVAILABLE
 #include <osg/LineWidth>
@@ -222,6 +223,49 @@ GLUtils::popDebugGroup()
         gl.init();
         gl.PopDebugGroup();
     }
+}
+
+namespace
+{
+    std::atomic<DepthConvention::WorldEncoding> s_worldEncoding(DepthConvention::WorldEncoding::Legacy);
+}
+
+void
+DepthConvention::setWorldEncoding(WorldEncoding value)
+{
+    s_worldEncoding = value;
+}
+
+DepthConvention::WorldEncoding
+DepthConvention::getWorldEncoding()
+{
+    return s_worldEncoding;
+}
+
+osg::Depth*
+DepthConvention::world(bool writeMask)
+{
+    return new osg::Depth(
+        getWorldEncoding() == WorldEncoding::ReversedZ ? osg::Depth::GEQUAL : osg::Depth::LEQUAL,
+        0.0, 1.0, writeMask);
+}
+
+double
+DepthConvention::worldClearDepth()
+{
+    return getWorldEncoding() == WorldEncoding::ReversedZ ? 0.0 : 1.0;
+}
+
+osg::Depth*
+DepthConvention::local(bool writeMask)
+{
+    return new osg::Depth(osg::Depth::LEQUAL, 0.0, 1.0, writeMask);
+}
+
+double
+DepthConvention::localClearDepth()
+{
+    return 1.0;
 }
 
 void

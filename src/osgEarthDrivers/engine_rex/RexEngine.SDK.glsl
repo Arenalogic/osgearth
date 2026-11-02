@@ -2,7 +2,10 @@
 
 #pragma import_defines(OE_MESA_23_WORKAROUND)
 #ifdef OE_MESA_23_WORKAROUND
-#define TILE_COORDS gl_MultiTexCoord0
+// Stage global: the tile coordinate attribute as read by
+// REX Engine - Init Model Space (vertex stage only).
+vec4 oe_rex_tileCoordsAttrib;
+#define TILE_COORDS oe_rex_tileCoordsAttrib
 #else
 #define TILE_COORDS oe_layer_tilec
 #endif

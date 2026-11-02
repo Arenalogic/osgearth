@@ -9,6 +9,7 @@
 #include <osgEarth/Registry>
 #include <osgEarth/Shaders>
 #include <osgEarth/CameraUtils>
+#include <osgEarth/GLUtils>
 
 #include <osg/Depth>
 #include <osg/PolygonMode>
@@ -162,7 +163,7 @@ ClampingTechnique::setUpCamera(OverlayDecorator::TechRTTParams& params)
     params._rttCamera = new osg::Camera();
     params._rttCamera->setName("GPU Clamping");
     params._rttCamera->setReferenceFrame( osg::Camera::ABSOLUTE_RF_INHERIT_VIEWPOINT );
-    params._rttCamera->setClearDepth( 1.0 );
+    params._rttCamera->setClearDepth( DepthConvention::localClearDepth() );
     params._rttCamera->setClearMask( GL_DEPTH_BUFFER_BIT );
     params._rttCamera->setComputeNearFarMode( osg::CullSettings::DO_NOT_COMPUTE_NEAR_FAR );
     params._rttCamera->setViewport( 0, 0, *_textureSize, *_textureSize );
@@ -228,7 +229,7 @@ ClampingTechnique::setUpCamera(OverlayDecorator::TechRTTParams& params)
 
     // set up depth test/write parameters for the overlay geometry:
     local->_groupStateSet->setAttributeAndModes(
-        new osg::Depth( osg::Depth::LEQUAL, 0.0, 1.0, true ),
+        DepthConvention::local(true),
         osg::StateAttribute::ON );
 
     local->_groupStateSet->setRenderingHint( osg::StateSet::TRANSPARENT_BIN );

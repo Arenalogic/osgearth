@@ -178,7 +178,7 @@ FeatureNodeFactory::getOrCreateStyleGroup(const Style& style,
                 new osg::PolygonOffset(-1, -1), 1);
 
             ss->setAttributeAndModes(
-                new osg::Depth(osg::Depth::LEQUAL, 0, 1, false));
+                DepthConvention::world(false));
         }
 
         if ( render->depthTest().isSet() )

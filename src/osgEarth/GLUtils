@@ -13,6 +13,7 @@
 #include <osg/GLObjects>
 #include <osg/Texture2D>
 #include <osg/State>
+#include <osg/Depth>
 
 #ifndef GLintptr
 #define GLintptr std::intptr_t
@@ -99,7 +100,47 @@ namespace osgEarth
     };
 
     /**
-     * Scope-based GL debug group 
+     * Depth-test conventions for osgEarth's own depth state.
+     *
+     * world() is for state drawn inside the application's world pass, which
+     * may use a reversed-Z depth encoding; the application sets the encoding
+     * once, before any such state is built. local() is for osgEarth's own
+     * RTT cameras with [-1,1] projections (GPU clamping, draping), which keep
+     * the standard convention whatever the world encoding is.
+     *
+     * Under the default (Legacy) encoding both return exactly the depth
+     * state osgEarth has always built.
+     */
+    struct OSGEARTH_EXPORT DepthConvention
+    {
+        enum class WorldEncoding
+        {
+            Legacy,     // LEQUAL, clear 1
+            ReversedZ   // GEQUAL, clear 0
+        };
+
+        //! Sets the process-wide world encoding (default Legacy).
+        static void setWorldEncoding(WorldEncoding value);
+
+        //! The process-wide world encoding.
+        static WorldEncoding getWorldEncoding();
+
+        //! New depth state for a world site: LEQUAL under Legacy, GEQUAL
+        //! under ReversedZ; range [0,1].
+        static osg::Depth* world(bool writeMask);
+
+        //! Depth clear value matching world(): 1 under Legacy, 0 under ReversedZ.
+        static double worldClearDepth();
+
+        //! New depth state for a local site: always LEQUAL, range [0,1].
+        static osg::Depth* local(bool writeMask);
+
+        //! Depth clear value matching local(): always 1.
+        static double localClearDepth();
+    };
+
+    /**
+     * Scope-based GL debug group
      */
     struct ScopedGLDebugGroup
     {

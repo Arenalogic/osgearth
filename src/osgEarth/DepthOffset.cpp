@@ -8,6 +8,7 @@
 #include <osgEarth/NodeUtils>
 #include <osgEarth/Capabilities>
 #include <osgEarth/Shaders>
+#include <osgEarth/GLUtils>
 #include "Notify"
 
 #include <osg/Geometry>
@@ -170,7 +171,7 @@ DepthOffsetAdapter::setGraph(osg::Node* graph)
         shaders.load(vp, shaders.DepthOffset);  
 
         // disable depth writes
-        s->setAttributeAndModes(new osg::Depth(osg::Depth::LEQUAL, 0.0, 1.0, false), 1);
+        s->setAttributeAndModes(DepthConvention::world(false), 1);
     }
 
     if ( graphChanging )

@@ -9,6 +9,7 @@ $GLSL_DEFAULT_PRECISION_FLOAT
 
 uniform mat4 oe_tile_normalTexMatrix;
 uniform vec2 oe_tile_elevTexelCoeff;
+uniform mat3 osg_NormalMatrix;
 
 // stage globals
 vec4 oe_layer_tilec;
@@ -31,5 +32,5 @@ void oe_normalMapVertex(inout vec4 unused)
         + oe_tile_elevTexelCoeff.y;
 
     // send the bi-normal to the fragment shader
-    oe_normalMapBinormal = normalize(gl_NormalMatrix * vec3(0,1,0));
+    oe_normalMapBinormal = normalize(osg_NormalMatrix * vec3(0,1,0));
 }

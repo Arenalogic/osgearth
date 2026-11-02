@@ -1,6 +1,11 @@
 #pragma vp_name REX Engine - Init Model Space
 #pragma vp_function oe_rex_init_model, vertex_model, first
 
+#pragma import_defines(OE_MESA_23_WORKAROUND)
+
+// attributes (the names OSG's vertex attribute aliasing binds)
+in vec4 osg_MultiTexCoord0;
+
 // uniforms
 uniform vec4 oe_terrain_color;
 uniform vec4 oe_tile_key_u;
@@ -14,11 +19,14 @@ flat out int oe_terrain_vertexMarker;
 
 // stage globals
 vec4 oe_tile_key;
+#ifdef OE_MESA_23_WORKAROUND
+vec4 oe_rex_tileCoordsAttrib; // read by the terrain SDK
+#endif
 
 void oe_rex_init_model(inout vec4 vertexModel)
 {
     // Texture coordinate for the tile (always 0..1)
-    oe_layer_tilec = gl_MultiTexCoord0;
+    oe_layer_tilec = osg_MultiTexCoord0;
 
     // Extract the vertex type marker
     //oe_terrain_vertexMarker = int(oe_layer_tilec.z);
@@ -26,7 +34,11 @@ void oe_rex_init_model(inout vec4 vertexModel)
     // Doing this instead of the commented-out line above is a workaround
     // for the Mesa driver bug described here:
     // https://gitlab.freedesktop.org/mesa/mesa/-/issues/10482
-    oe_terrain_vertexMarker = int(gl_MultiTexCoord0.z);
+    oe_terrain_vertexMarker = int(osg_MultiTexCoord0.z);
+
+#ifdef OE_MESA_23_WORKAROUND
+    oe_rex_tileCoordsAttrib = osg_MultiTexCoord0;
+#endif
 
     // Color of the underlying map geometry (untextured)
     vp_Color = oe_terrain_color;

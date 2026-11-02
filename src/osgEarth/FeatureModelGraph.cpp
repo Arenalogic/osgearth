@@ -1951,7 +1951,7 @@ FeatureModelGraph::applyRenderSymbology(const Style& style, osg::Node* node)
                 new osg::PolygonOffset(-1, -1), 1);
 
             getOrCreateStateSet()->setAttributeAndModes(
-                new osg::Depth(osg::Depth::LEQUAL, 0, 1, false));
+                DepthConvention::world(false));
         }
 
         if (render->backfaceCulling().isSet())

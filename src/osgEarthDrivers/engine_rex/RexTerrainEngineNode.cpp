@@ -19,6 +19,7 @@
 #include <osgEarth/Elevation>
 #include <osgEarth/LandCover>
 #include <osgEarth/ShaderFactory>
+#include <osgEarth/GLUtils>
 
 #include <osg/BlendFunc>
 #include <osg/Depth>
@@ -1343,7 +1344,7 @@ RexTerrainEngineNode::updateState()
         {
             // required for multipass tile rendering to work
             _surfaceSS->setAttributeAndModes(
-                new osg::Depth(osg::Depth::LEQUAL, 0, 1, true));
+                DepthConvention::world(true));
 
             // backface culling on
             _surfaceSS->setAttributeAndModes(

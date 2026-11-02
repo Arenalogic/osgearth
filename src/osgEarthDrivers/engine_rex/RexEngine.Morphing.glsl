@@ -13,6 +13,11 @@ out vec4 oe_layer_tilec;
 out float oe_rex_morphFactor;
 flat out int oe_terrain_vertexMarker;
 
+// attributes (the names OSG's vertex attribute aliasing binds)
+in vec4 osg_MultiTexCoord1;
+in vec4 osg_MultiTexCoord2;
+
+uniform mat4 osg_ModelViewMatrix;
 uniform vec2 oe_tile_morph;
 
 uniform vec2 oe_tile_elevTexelCoeff;
@@ -50,7 +55,7 @@ float oe_rex_ComputeMorphFactor(in vec4 position, in vec3 up)
 		wouldBePosition.xyz += up*elev;
 #endif
 
-    vec4 wouldBePositionView = gl_ModelViewMatrix * wouldBePosition;
+    vec4 wouldBePositionView = osg_ModelViewMatrix * wouldBePosition;
 
 #ifdef OE_IS_DEPTH_CAMERA
     // For a depth camera, we have to compute the morphed position
@@ -73,8 +78,8 @@ void oe_rex_morph(inout vec4 vertexModel)
         oe_rex_morphFactor = oe_rex_ComputeMorphFactor(vertexModel, vp_Normal);
 
 #ifdef OE_TERRAIN_MORPH_GEOMETRY
-        vec4 neighborVertexModel = vec4(gl_MultiTexCoord1.xyz, 1.0);
-        vec3 neighborNormal = gl_MultiTexCoord2.xyz;
+        vec4 neighborVertexModel = vec4(osg_MultiTexCoord1.xyz, 1.0);
+        vec3 neighborNormal = osg_MultiTexCoord2.xyz;
 
         const float halfSize = (0.5*OE_TILE_SIZE)-0.5;
         const float twoOverHalfSize = 2.0/(OE_TILE_SIZE-1.0);

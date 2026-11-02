@@ -259,6 +259,6 @@ RenderSymbol::applyTo(osg::Node* node) const
             new osg::PolygonOffset(-1, -1), 1);
 
         node->getOrCreateStateSet()->setAttributeAndModes(
-            new osg::Depth(osg::Depth::LEQUAL, 0, 1, false));
+            DepthConvention::world(false));
     }
 }
