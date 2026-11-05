@@ -1297,9 +1297,14 @@ RexTerrainEngineNode::updateState()
         // State that affects any terrain layer (surface, patch, other)
         // AND compute shaders
         {
-            // activate standard mix blending.
+            // activate standard mix blending; premultiplied output (ACT fork,
+            // GL core native C15 T9, terrain option premultiplied_alpha, default
+            // off) blends ONE, ONE_MINUS_SRC_ALPHA. The surface layers carry the
+            // same blend on their own StateSets (VisibleLayer::prepareForRendering).
             _terrainSS->setAttributeAndModes(
-                new osg::BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA),
+                options.getPremultipliedAlpha() == true ?
+                    new osg::BlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA) :
+                    new osg::BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA),
                 osg::StateAttribute::ON);
 
             VirtualProgram* terrainVP = VirtualProgram::getOrCreate(_terrainSS.get());

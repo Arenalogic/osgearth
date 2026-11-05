@@ -8,6 +8,7 @@
 #include "ShaderLoader"
 #include "SimplePager"
 #include "CullingUtils"
+#include "TerrainEngineNode"
 
 #include <osg/BlendFunc>
 
@@ -202,6 +203,21 @@ VisibleLayer::prepareForRendering(TerrainEngine* engine)
     Layer::prepareForRendering(engine);
 
     initializeUniforms();
+
+    // ACT fork (GL core native C15 T9): a terrain with premultiplied_alpha writes
+    // premultiplied colour, so the layers it draws into the surface blend with
+    // ONE, ONE_MINUS_SRC_ALPHA (rex draws each such layer with this StateSet, whose
+    // OVERRIDE blend replaces the terrain's). Modulate keeps its DST_COLOR blend
+    // (its output alpha is 1). Other layers and the default (off) are unchanged.
+    if (engine != nullptr &&
+        getRenderType() == RENDERTYPE_TERRAIN_SURFACE &&
+        options().blend() != BLEND_MODULATE &&
+        engine->getOptions().getPremultipliedAlpha() == true)
+    {
+        getOrCreateStateSet()->setAttributeAndModes(
+            new osg::BlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA),
+            osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
+    }
 
     if (options().minVisibleRange().isSet() || options().maxVisibleRange().isSet())
     {

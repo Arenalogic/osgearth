@@ -25,6 +25,7 @@ namespace osgEarth
         OE_OPTION(unsigned, firstLOD, 0u);
         OE_OPTION(bool, enableLighting, true);
         OE_OPTION(bool, enableBlending, true);
+        OE_OPTION(bool, premultipliedAlpha, false); // ACT fork, C15 T9: default off, today's blend
         OE_OPTION(unsigned, minNormalMapLOD, 0u);
         OE_OPTION(unsigned, normalMapTileSize, 256u);
         OE_OPTION(bool, gpuTessellation, false);
@@ -50,6 +51,7 @@ namespace osgEarth
         OE_OPTION(unsigned, mergesPerFrame, ~0u);
         OE_OPTION(float, priorityScale, 1.0f);
         OE_OPTION(std::string, textureCompression, {});
+        OE_OPTION(bool, srgbImagery, false); // ACT fork, C15 T9: default off, today's formats
         OE_OPTION(unsigned, concurrency, 4u);
         OE_OPTION(bool, useLandCover, true);
         OE_OPTION(float, screenSpaceError, 0.0f);
@@ -111,6 +113,14 @@ namespace osgEarth
         //! Whether to enable blending on the terrain. Default is true.
         void setEnableBlending(const bool& value);
         const bool& getEnableBlending() const;
+
+        //! (ACT fork, GL core native C15 T9) Whether the terrain's output colour is
+        //! premultiplied by its alpha: the terrain blends with ONE, ONE_MINUS_SRC_ALPHA
+        //! instead of SRC_ALPHA, ONE_MINUS_SRC_ALPHA. The shaders that write the output
+        //! must premultiply (the application's output function); osgEarth's own shaders
+        //! are unchanged. Default is false (straight alpha, today's blend).
+        void setPremultipliedAlpha(const bool& value);
+        const bool& getPremultipliedAlpha() const;
 
         //! Minimum level of detail at which to generate elevation-based normal maps,
         //! assuming normal maps have been activated. This mitigates the overhead of 
@@ -236,6 +246,15 @@ namespace osgEarth
         //! Texture compression to use by default on terrain image textures
         void setTextureCompressionMethod(const std::string& method);
         const std::string& getTextureCompressionMethod() const;
+
+        //! (ACT fork, GL core native C15 T9) Whether image layers tagged
+        //! ImageLayer::ColorSpace::SRGB sample through sRGB internal formats
+        //! (SRGB8, SRGB8_ALPHA8, COMPRESSED_SRGB*_S3TC_*), so the texture unit
+        //! decodes them to linear before filtering. Formats without an sRGB
+        //! counterpart, coverage, elevation and normal textures stay as they are.
+        //! Read when a tile's textures are created. Default is false (today's formats).
+        void setSRGBImagery(const bool& value);
+        const bool& getSRGBImagery() const;
 
         //! Target concurrency of terrain data loading operations. Default = 4.
         void setConcurrency(const unsigned& value);

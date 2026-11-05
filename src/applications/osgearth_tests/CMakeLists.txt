@@ -6,8 +6,10 @@ set(TARGET_SRC
     EndianTests.cpp
     ExpressionTests.cpp
     GeoExtentTests.cpp
+    TerrainSRGBImageryTests.cpp
     FeatureTests.cpp
     ImageUtilsTests.cpp
+    TerrainPremultipliedAlphaTests.cpp
     PathTests.cpp
     PagedNodeTests.cpp
     RexShaderTokenTests.cpp

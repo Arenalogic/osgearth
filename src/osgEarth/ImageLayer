@@ -47,6 +47,19 @@ namespace osgEarth
      */
     class OSGEARTH_EXPORT ImageLayer : public TileLayer
     {
+    public:
+        //! What the layer's texels encode (ACT fork, GL core native C15 T9).
+        //! SRGB: display colour, sRGB-encoded (the default, right for colour imagery).
+        //! LINEAR: linear values or data (a data texture, a light map stored linear).
+        //! With the terrain option srgb_imagery the engine samples SRGB layers through
+        //! an sRGB internal format, so the texture unit decodes them to linear before
+        //! filtering; without it the tag changes nothing.
+        enum class ColorSpace
+        {
+            SRGB,
+            LINEAR
+        };
+
     public: // Serialization
         class OSGEARTH_EXPORT Options : public TileLayer::Options {
         public:
@@ -67,6 +80,7 @@ namespace osgEarth
             OE_OPTION(std::string, shareTexUniformName);
             OE_OPTION(std::string, shareTexMatUniformName);
             OE_OPTION(bool, morphImagery, true);
+            OE_OPTION(ColorSpace, colorSpace, ColorSpace::SRGB);
             virtual Config getConfig() const;
         private:
             void fromConfig(const Config& conf);

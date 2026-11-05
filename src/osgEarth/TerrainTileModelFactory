@@ -102,6 +102,15 @@ namespace osgEarth
             const TerrainEngineRequirements& requirements,
             ProgressCallback*                progress);
 
+        //! (ACT fork, GL core native C15 T9) The sRGB counterpart of a texture
+        //! internal format: GL_RGB8 -> GL_SRGB8, GL_RGBA8 -> GL_SRGB8_ALPHA8, the
+        //! S3TC DXT1/3/5 formats -> their COMPRESSED_SRGB* forms, and unsized
+        //! GL_RGB/GL_RGBA only for GL_UNSIGNED_BYTE data. Any other format (16-bit,
+        //! float, RG, R, already sRGB) is returned unchanged. Image layers tagged
+        //! ImageLayer::ColorSpace::SRGB get it when the terrain option srgb_imagery
+        //! is set (createImageTexture).
+        static GLenum getSRGBInternalFormat(GLenum internalFormat, GLenum dataType);
+
     protected:
 
         virtual void addColorLayers(

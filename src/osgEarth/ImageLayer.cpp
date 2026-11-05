@@ -69,6 +69,11 @@ ImageLayer::Options::fromConfig(const Config& conf)
     
     conf.get("async", async());
     conf.get("morph_imagery", morphImagery());
+
+    // ACT fork (GL core native C15 T9): "data" is an alias of "linear".
+    conf.get("color_space", "srgb",   colorSpace(), ColorSpace::SRGB);
+    conf.get("color_space", "linear", colorSpace(), ColorSpace::LINEAR);
+    conf.get("color_space", "data",   colorSpace(), ColorSpace::LINEAR);
 }
 
 Config
@@ -117,6 +122,9 @@ ImageLayer::Options::getConfig() const
 
     conf.set("async", async());
     conf.set("morph_imagery", morphImagery());
+
+    conf.set("color_space", "srgb",   colorSpace(), ColorSpace::SRGB);
+    conf.set("color_space", "linear", colorSpace(), ColorSpace::LINEAR);
 
     return conf;
 }

@@ -13,6 +13,13 @@
 #include <osg/Texture2D>
 #include <osg/Texture2DArray>
 
+#ifndef GL_SRGB8
+#define GL_SRGB8 0x8C41
+#endif
+#ifndef GL_SRGB8_ALPHA8
+#define GL_SRGB8_ALPHA8 0x8C43
+#endif
+
 #define LC "[TerrainTileModelFactory] "
 
 
@@ -806,7 +813,46 @@ TerrainTileModelFactory::createImageTexture(
         }
     }
 
+    // ACT fork (GL core native C15 T9): with the terrain option srgb_imagery, an
+    // sRGB-tagged colour layer samples through the sRGB counterpart of its format,
+    // so the texture unit decodes it to linear before filtering. The image data is
+    // not touched (only the texture's internal format); default off.
+    if (_options.srgbImagery() == true &&
+        layer->options().colorSpace() == ImageLayer::ColorSpace::SRGB)
+    {
+        const osg::Image* first = tex->getNumImages() > 0 ? tex->getImage(0) : nullptr;
+        GLenum format = 0;
+        if (tex->getInternalFormatMode() == osg::Texture::USE_S3TC_DXT5_COMPRESSION)
+            format = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
+        else if (tex->getInternalFormatMode() == osg::Texture::USE_USER_DEFINED_FORMAT)
+            format = (GLenum)tex->getInternalFormat();
+        else if (tex->getInternalFormatMode() == osg::Texture::USE_IMAGE_DATA_FORMAT && first != nullptr)
+            format = (GLenum)first->getInternalTextureFormat();
+
+        const GLenum dataType = first != nullptr ? first->getDataType() : (GLenum)GL_UNSIGNED_BYTE;
+        const GLenum srgb = getSRGBInternalFormat(format, dataType);
+        if (format != 0 && srgb != format)
+            tex->setInternalFormat((GLint)srgb);
+    }
+
     return Texture::create(tex);
+}
+
+GLenum
+TerrainTileModelFactory::getSRGBInternalFormat(GLenum internalFormat, GLenum dataType)
+{
+    switch (internalFormat)
+    {
+    case GL_RGB8:  return GL_SRGB8;
+    case GL_RGBA8: return GL_SRGB8_ALPHA8;
+    case GL_RGB:   return dataType == GL_UNSIGNED_BYTE ? (GLenum)GL_SRGB8 : internalFormat;
+    case GL_RGBA:  return dataType == GL_UNSIGNED_BYTE ? (GLenum)GL_SRGB8_ALPHA8 : internalFormat;
+    case GL_COMPRESSED_RGB_S3TC_DXT1_EXT:  return GL_COMPRESSED_SRGB_S3TC_DXT1_EXT;
+    case GL_COMPRESSED_RGBA_S3TC_DXT1_EXT: return GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT;
+    case GL_COMPRESSED_RGBA_S3TC_DXT3_EXT: return GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT;
+    case GL_COMPRESSED_RGBA_S3TC_DXT5_EXT: return GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT;
+    default: return internalFormat;
+    }
 }
 
 Texture::Ptr
