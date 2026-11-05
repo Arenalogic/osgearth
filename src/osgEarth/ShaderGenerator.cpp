@@ -28,7 +28,6 @@
 #include <osgDB/FileNameUtils>
 #include <osgDB/FileUtils>
 #include <osgText/Text>
-#include <osgSim/LightPointNode>
 #include <osgUtil/SmoothingVisitor>
 
 #include <osg/ValueObject>
@@ -448,8 +447,6 @@ ShaderGenerator::apply(osg::Node& node)
     if (_duplicateSharedSubgraphs)
         duplicateSharedNode(node);
 
-    applyNonCoreNodeIfNecessary(node);
-
     osg::ref_ptr<osg::StateSet> stateset = node.getStateSet();
     if (stateset.valid())
     {
@@ -679,47 +676,6 @@ ShaderGenerator::apply(osg::ClipNode& node)
 {
     // no longer needed
     apply( static_cast<osg::Group&>(node) );
-}
-
-void
-ShaderGenerator::applyNonCoreNodeIfNecessary(osg::Node& node)
-{
-    if ( dynamic_cast<osgSim::LightPointNode*>(&node) )
-    {
-        apply( static_cast<osgSim::LightPointNode&>(node) );
-    }
-}
-
-void
-ShaderGenerator::apply(osgSim::LightPointNode& node)
-{
-    if ( node.getPointSprite() )
-    {
-        osg::ref_ptr<osg::StateSet> stateset;
-
-        // if the node has state, clone it so we can add our temp attribute.
-        stateset = node.getStateSet() ?
-            osg::clone(node.getStateSet(), osg::CopyOp::SHALLOW_COPY) :
-            new osg::StateSet();
-
-        // add a temporary point sprite so the generator will make sprite code.
-        osg::ref_ptr<osg::PointSprite> sprite = new osg::PointSprite();
-        stateset->setTextureAttributeAndModes(0, sprite.get());
-
-        disableUnsupportedAttributes(stateset.get());
-
-        _state->pushStateSet( stateset.get() );
-
-        osg::ref_ptr<osg::StateSet> replacement;
-        if ( processGeometry(nullptr, stateset.get(), replacement) )
-        {
-            // remove the temporary sprite.
-            replacement->removeTextureAttribute(0, sprite.get());
-            node.setStateSet(replacement.get() );
-        }
-
-        _state->popStateSet();
-    }
 }
 
 bool

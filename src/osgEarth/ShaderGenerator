@@ -33,11 +33,6 @@ namespace osg
     class LightSource;
 }
 
-namespace osgSim
-{
-    class LightPointNode;
-}
-
 namespace osgEarth
 {
     /**
@@ -173,13 +168,6 @@ namespace osgEarth
         virtual void apply( osg::ProxyNode& );
         virtual void apply( osg::ClipNode& );
         virtual void apply( osg::Drawable& );
-
-    public: // types not in osg::NodeVisitor
-
-        virtual void applyNonCoreNodeIfNecessary( osg::Node& );
-        
-        virtual void apply( osgSim::LightPointNode& );
-
 
     protected: // high-level entry points:
 
