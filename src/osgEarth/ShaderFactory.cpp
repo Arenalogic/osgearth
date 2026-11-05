@@ -143,6 +143,52 @@ namespace
 
     typedef std::vector<Variable> Variables;
 
+    // A constant initializer giving the stage global the zero value of its type
+    // (" = vec3(0)", " = vec4[2](vec4(0), vec4(0))"), or empty when the type has no
+    // plain zero constructor (a struct, an array whose size is not a literal).
+    // The vertex main reads every stage global to copy it to vp_out, but only the
+    // shader objects of the VP functions write them; a compiler that checks each
+    // shader object alone (Mesa) reports "used uninitialized" for every one.
+    // A global initializer runs before main (GLSL 4.60 sec. 4.3), so a VP function
+    // that writes the global still writes the value main copies; a global no
+    // function writes is copied as zero instead of an undefined value. Initializers
+    // of one global in several objects of a stage must be the same constant, and
+    // "out" globals the ShaderLoader rewrites carry none.
+    std::string zeroInitializer(const Variable& v)
+    {
+        static const char* const types[] = {
+            "float", "int", "uint", "bool", "double",
+            "vec2", "vec3", "vec4", "ivec2", "ivec3", "ivec4", "uvec2", "uvec3", "uvec4",
+            "bvec2", "bvec3", "bvec4", "dvec2", "dvec3", "dvec4",
+            "mat2", "mat3", "mat4", "mat2x2", "mat2x3", "mat2x4", "mat3x2", "mat3x3", "mat3x4",
+            "mat4x2", "mat4x3", "mat4x4",
+            "dmat2", "dmat3", "dmat4", "dmat2x2", "dmat2x3", "dmat2x4", "dmat3x2", "dmat3x3", "dmat3x4",
+            "dmat4x2", "dmat4x3", "dmat4x4" };
+
+        bool known = false;
+        for (const char* t : types)
+        {
+            if (v.type == t)
+            {
+                known = true;
+                break;
+            }
+        }
+        if (!known)
+            return std::string();
+
+        const std::string element = v.type + "(0)";
+        if (v.declaration.find('[') == std::string::npos)
+            return " = " + element;
+        if (v.arraySize <= 0)
+            return std::string();
+
+        std::string init = " = " + v.type + "[" + std::to_string(v.arraySize) + "](";
+        for (int n = 0; n < v.arraySize; ++n)
+            init += (n == 0 ? "" : ", ") + element;
+        return init + ")";
+    }
+
     struct PackedSlot
     {
         ComponentType  scalar;
@@ -550,9 +596,10 @@ ShaderFactory::createMains(
 
         addExtensionsToBuffer(buf, in_extensions);
 
+        // Zero-initialised: main copies them all to vp_out below (see zeroInitializer).
         buf << "\n// Vertex stage globals:\n";
         for(Variables::const_iterator i = vars.begin(); i != vars.end(); ++i)
-            buf << i->prec << (i->prec.empty()?"":" ") << i->declaration << "; \n";
+            buf << i->prec << (i->prec.empty()?"":" ") << i->declaration << zeroInitializer(*i) << "; \n";
         
         buf << "\n// Vertex stage outputs:\n";
         if ( hasGS || hasTCS )

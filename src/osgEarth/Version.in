@@ -67,6 +67,12 @@ extern "C" {
 #define OSGEARTH_VERSION_GREATER_THAN(MAJOR, MINOR, PATCH) ((OSGEARTH_MAJOR_VERSION>MAJOR) || (OSGEARTH_MAJOR_VERSION==MAJOR && (OSGEARTH_MINOR_VERSION>MINOR || (OSGEARTH_MINOR_VERSION==MINOR && OSGEARTH_PATCH_VERSION>PATCH))))
 #define OSGEARTH_VERSION_GREATER_OR_EQUAL(MAJOR, MINOR, PATCH) ((OSGEARTH_MAJOR_VERSION>MAJOR) || (OSGEARTH_MAJOR_VERSION==MAJOR && (OSGEARTH_MINOR_VERSION>MINOR || (OSGEARTH_MINOR_VERSION==MINOR && OSGEARTH_PATCH_VERSION>=PATCH))))
 
+/* ACT fork features (GL core native). A consumer tests these with #ifdef before relying on them.
+ * OSGEARTH_ACT_VP_STAGE_GLOBALS_INITIALIZED: ShaderFactory's generated vertex main declares every stage
+ * global it copies to vp_out with a zero initializer, so Mesa reports no "used uninitialized" (D52).
+ */
+#define OSGEARTH_ACT_VP_STAGE_GLOBALS_INITIALIZED 1
+
 //! Embeds the git SHA1 hash into the library. This is used for version reporting.
 #ifdef OSGEARTH_EMBED_GIT_SHA
     extern OSGEARTH_EXPORT const char* osgEarthGitSHA1();
