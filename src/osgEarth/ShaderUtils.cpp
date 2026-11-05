@@ -8,6 +8,7 @@
 #include <osgEarth/Capabilities>
 #include <osgEarth/CullingUtils>
 #include <osgEarth/GLSLChunker>
+#include <cstdlib>
 
 using namespace osgEarth;
 using namespace osgEarth::Util;
@@ -111,6 +112,53 @@ namespace
         return yes;
     }
 
+    // D52 (ACT GL core native, option C): the plain global a varying declaration is rewritten into gets the zero
+    // value of its type (" = vec3(0)"), as ShaderFactory's generated mains declare theirs (zeroInitializer there).
+    // A compiler that checks each shader object alone (Mesa) otherwise reports "used uninitialized" for every VP
+    // function that reads an "in" (written only by the generated main of the stage) or reads back its own "out".
+    // A global initializer runs before main, so the main's copy from vp_in and the functions' writes still win;
+    // several objects of a stage may declare one global with the same constant. Returns "" for a type with no plain
+    // zero constructor (a struct, an array without a literal size): that declaration stays as it was.
+    std::string zeroInitializerFor(const std::string& type, const std::string& nameAndArray)
+    {
+        static const char* const types[] = {
+            "float", "int", "uint", "bool", "double",
+            "vec2", "vec3", "vec4", "ivec2", "ivec3", "ivec4", "uvec2", "uvec3", "uvec4",
+            "bvec2", "bvec3", "bvec4", "dvec2", "dvec3", "dvec4",
+            "mat2", "mat3", "mat4", "mat2x2", "mat2x3", "mat2x4", "mat3x2", "mat3x3", "mat3x4",
+            "mat4x2", "mat4x3", "mat4x4",
+            "dmat2", "dmat3", "dmat4", "dmat2x2", "dmat2x3", "dmat2x4", "dmat3x2", "dmat3x3", "dmat3x4",
+            "dmat4x2", "dmat4x3", "dmat4x4" };
+        bool known = false;
+        for (const char* t : types)
+        {
+            if (type == t)
+            {
+                known = true;
+                break;
+            }
+        }
+        if (!known)
+            return std::string();
+        const std::string element = type + "(0)";
+        const std::string::size_type open = nameAndArray.find('[');
+        if (open == std::string::npos)
+            return " = " + element;
+        const std::string::size_type close = nameAndArray.find(']', open);
+        if (close == std::string::npos || nameAndArray.find('[', close) != std::string::npos)
+            return std::string();
+        const std::string size = nameAndArray.substr(open + 1, close - open - 1);
+        if (size.empty() || size.find_first_not_of("0123456789") != std::string::npos)
+            return std::string();
+        const int n = atoi(size.c_str());
+        if (n <= 0)
+            return std::string();
+        std::string init = " = " + type + "[" + size + "](";
+        for (int i = 0; i < n; ++i)
+            init += (i == 0 ? "" : ", ") + element;
+        return init + ")";
+    }
+
     int replaceVarying(GLSLChunker::Chunks& chunks, int index, const StringVector& tokens, int offset, const std::string& prefix, bool isInput)
     {
         std::stringstream buf;
@@ -141,9 +189,33 @@ namespace
         for(int i=offset; i<tokens.size(); ++i)
             buf2 << (i==offset?"":" ") << tokens[i];
 
+        // "type name;" (an optional precision before the type): the global gets its zero initializer (D52).
+        std::string declaration = buf2.str();
+        {
+            std::vector<std::string> words;
+            for (int i = offset; i < (int)tokens.size(); ++i)
+                if (!tokens[i].empty())
+                    words.push_back(tokens[i]);
+            const bool precision = words.size() == 3 &&
+                (words[0] == "lowp" || words[0] == "mediump" || words[0] == "highp");
+            if ((words.size() == 2 || precision) && words.back().size() > 1 && words.back().back() == ';')
+            {
+                const std::string& type = words[words.size() - 2];
+                const std::string name = words.back().substr(0, words.back().size() - 1);
+                const std::string init = zeroInitializerFor(type, name);
+                if (!init.empty())
+                {
+                    declaration.clear();
+                    for (size_t w = 0; w + 1 < words.size(); ++w)
+                        declaration += words[w] + " ";
+                    declaration += name + init + ";";
+                }
+            }
+        }
+
         GLSLChunker::Chunk newChunk;
         newChunk.type = GLSLChunker::Chunk::TYPE_STATEMENT;
-        newChunk.text = buf2.str();
+        newChunk.text = declaration;
         chunks.insert( chunks.begin()+index, newChunk );
 
         return index+1;
