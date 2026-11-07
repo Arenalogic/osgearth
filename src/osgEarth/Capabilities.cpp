@@ -267,10 +267,6 @@ Capabilities::Capabilities() :
         glGetIntegerv( GL_MAX_TEXTURE_IMAGE_UNITS_ARB, &_maxGPUTextureUnits );
         OE_DEBUG << LC << "Max GPU texture units = " << _maxGPUTextureUnits << std::endl;
 
-        GLint mvoc;
-        glGetIntegerv(GL_MAX_VERTEX_VARYING_COMPONENTS_EXT, &mvoc);
-        OE_DEBUG << LC << "Max varyings = " << mvoc << std::endl;
-
         glGetIntegerv( GL_MAX_TEXTURE_SIZE, &_maxTextureSize );
 #if !defined(OSG_GLES1_AVAILABLE) && !defined(OSG_GLES2_AVAILABLE) && !defined(OSG_GLES3_AVAILABLE)
         // Use the texture-proxy method to determine the maximum texture size
