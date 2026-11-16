@@ -543,13 +543,9 @@ GL3RealizeOperation::operator()(osg::Object* object)
         state->setUseModelViewAndProjectionUniforms(true);
         state->setUseVertexAttributeAliasing(true);
 
-#ifndef OSG_GL_FIXED_FUNCTION_AVAILABLE
-        state->setModeValidity(GL_LIGHTING, false);
-        state->setModeValidity(GL_NORMALIZE, false);
-        state->setModeValidity(GL_RESCALE_NORMAL, false);
-        state->setModeValidity(GL_LINE_STIPPLE, false);
-        state->setModeValidity(GL_LINE_SMOOTH, false);
-#endif
+        // No mode validity here: an OSG built without fixed function refuses every fixed-function mode itself, on every
+        // texture unit and after any release (osg::State::ModeMap). The list that stood here also refused GL_LINE_SMOOTH,
+        // which the core profile has.
     }
 
     CustomRealizeOperation::operator()(object);

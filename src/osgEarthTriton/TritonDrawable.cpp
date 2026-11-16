@@ -304,11 +304,6 @@ TritonDrawable::drawImplementation(osg::RenderInfo& renderInfo) const
     state->dirtyAllAttributes();
     state->dirtyAllModes();    
 
-#ifndef OSG_GL_FIXED_FUNCTION_AVAILABLE
-    // Keep OSG from reapplying GL_LIGHTING on next state change after dirtyAllModes().
-    state->setModeValidity(GL_LIGHTING, false);
-#endif
-
     // Keep an eye on this.
     // I had to remove something similar in another module (Rex engine) because it was causing
     // positional attributes (like clip planes) to re-apply with an incorrect MVM. -gw
