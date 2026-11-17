@@ -15,8 +15,7 @@ set(TARGET_SRC
     RexShaderTokenTests.cpp
     ImageLayerTests.cpp
     SpatialReferenceTests.cpp
-    ThreadingTests.cpp
-    VirtualProgramMainTests.cpp)
+    ThreadingTests.cpp)
 
 add_osgearth_app(
     TARGET osgearth_tests
