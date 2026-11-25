@@ -127,22 +127,32 @@ int main(int, char**)
 
     osgEarth::initialize();
 
-    // Create a hidden OpenGL 4.6 core forward-compatible context first so a headless machine exits 77 cleanly.
-    osg::ref_ptr<osg::GraphicsContext::Traits> traits = new osg::GraphicsContext::Traits;
-    traits->x = 0;
-    traits->y = 0;
-    traits->width = 64;
-    traits->height = 64;
-    traits->windowDecoration = false;
-    traits->doubleBuffer = false;
-    traits->hidden = true;
-    traits->windowName = "osgearth_rex_fixedlod_smoke";
-    traits->glContextVersion = "4.6";
-    traits->glContextProfileMask = GL_CONTEXT_CORE_PROFILE_BIT;
-    traits->glContextFlags = kCreateForwardCompatibleBit;
+    // Create an offscreen OpenGL 4.6 core forward-compatible context (pbuffer first so disconnected-RDP /
+    // service sessions still run on hardware GL; hidden window fallback). Exits 77 if unavailable.
+    osg::ref_ptr<osg::GraphicsContext> gc;
+    for (int attempt = 0; attempt < 2 && !gc.valid(); ++attempt)
+    {
+        osg::ref_ptr<osg::GraphicsContext::Traits> traits = new osg::GraphicsContext::Traits;
+        traits->x = 0;
+        traits->y = 0;
+        traits->width = 64;
+        traits->height = 64;
+        traits->windowDecoration = false;
+        traits->doubleBuffer = false;
+        traits->pbuffer = (attempt == 0);
+        traits->hidden = (attempt != 0);
+        traits->windowName = "osgearth_rex_fixedlod_smoke";
+        traits->glContextVersion = "4.6";
+        traits->glContextProfileMask = GL_CONTEXT_CORE_PROFILE_BIT;
+        traits->glContextFlags = kCreateForwardCompatibleBit;
 
-    osg::ref_ptr<osg::GraphicsContext> gc = osg::GraphicsContext::createGraphicsContext(traits.get());
-    if (!gc.valid() || !gc->realize() || !gc->makeCurrent())
+        osg::ref_ptr<osg::GraphicsContext> candidate = osg::GraphicsContext::createGraphicsContext(traits.get());
+        if (candidate.valid() && candidate->realize() && candidate->makeCurrent())
+        {
+            gc = candidate;
+        }
+    }
+    if (!gc.valid())
     {
         std::cout << "osgearth_rex_fixedlod_smoke: skipped, no OpenGL 4.6 core context available" << std::endl;
         return kSkip;
