@@ -231,7 +231,15 @@ endif()
 
 # Source code ............................................................
 
+if(OSGEARTH_BUILD_TESTS)
+    enable_testing()
+endif()
+
 add_subdirectory(src)
+
+if(OSGEARTH_BUILD_TESTS)
+    add_subdirectory(tests)
+endif()
 
 if(OSGEARTH_BUILD_DOCS)
     add_subdirectory(docs)

@@ -47,7 +47,7 @@ endif()
 add_subdirectory(osgEarthDrivers)
 
 # apps and tools:
-if(OSGEARTH_BUILD_TOOLS OR OSGEARTH_BUILD_EXAMPLES)
+if(OSGEARTH_BUILD_TOOLS OR OSGEARTH_BUILD_EXAMPLES OR OSGEARTH_BUILD_TESTS)
     add_subdirectory(applications)
 endif()
 
