@@ -56,9 +56,10 @@ ProgramState::init(
 void
 ProgramState::reset()
 {
-    //_elevTexelCoeff.clear();
+    _tileKey.clear();
     _morphConstants.clear();
     _parentTextureExists.clear();
     _layerOrder.clear();
+    _elevMinMax.clear();
     _samplerState.clear();
 }

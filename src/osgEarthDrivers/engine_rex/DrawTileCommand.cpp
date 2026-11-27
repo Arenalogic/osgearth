@@ -21,9 +21,10 @@ DrawTileCommand::apply(osg::RenderInfo& ri, void* implData) const
     osg::GLExtensions* ext = state.get<osg::GLExtensions>();
 
     // Tile key encoding, if the uniform is required.
-    if (pps._tileKeyUL >= 0)
+    if (pps._tileKeyUL >= 0 && !pps._tileKey.isSetTo(_keyValue))
     {
         ext->glUniform4fv(pps._tileKeyUL, 1, _keyValue.ptr());
+        pps._tileKey = _keyValue;
     }
 
     // Apply the layer draw order for this tile so we can blend correctly:

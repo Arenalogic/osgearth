@@ -25,8 +25,10 @@
 #include <osgEarth/Registry>
 #include <osgEarth/TerrainEngineNode>
 #include <osgEarth/TerrainOptions>
+#include <osgEarth/VirtualProgram>
 
 #include <osg/Camera>
+#include <osg/GLExtensions>
 #include <osg/GraphicsContext>
 #include <osg/Image>
 #include <osg/Matrixd>
@@ -163,9 +165,15 @@ int main(int, char**)
     std::cout << "osgearth_rex_fixedlod_smoke: " << (renderer ? renderer : "?")
               << ", GL " << (version ? version : "?") << std::endl;
     // Initialize osgEarth's GL3/core state (MVP uniforms + vertex attribute aliasing).
+    osg::VertexArrayState* globalVas = nullptr;
     {
         osg::ref_ptr<osgEarth::GL3RealizeOperation> realizeOp = new osgEarth::GL3RealizeOperation();
         (*realizeOp)(gc.get());
+        if (gc->getState() != nullptr)
+        {
+            gc->getState()->setCurrentToGlobalVertexArrayState();
+            globalVas = gc->getState()->getCurrentVertexArrayState();
+        }
     }
     gc->releaseContext();
 
@@ -280,6 +288,154 @@ int main(int, char**)
     std::ostringstream errMsg;
     errMsg << "zero GL errors during settled rex frames (count=" << errCb->errors.size() << ")";
     check(errCb->errors.empty(), errMsg.str());
+
+    // Regression checks for Cut 2C:
+    //  6. Batched LayerDrawableGL3 reuses a single SharedGeometry VAO across resident tiles
+    //     on a settled frame (fewer VAO binds than unbatched per-tile bind+restore) and leaves
+    //     OSG's current VertexArrayState restored to the global default.
+    //  7. VirtualProgram::apply() skips redundant glUseProgram when the same PerContextProgram
+    //     was already active (without dereferencing a potentially stale prevPCP), still relinks
+    //     and rebinds when pcp->needsLink() is true, and rebinds after external invalidation.
+    {
+        osg::State* state = gc->getState();
+        check(state != nullptr, "GraphicsContext has a valid osg::State");
+        if (state != nullptr)
+        {
+            check(globalVas != nullptr && state->getCurrentVertexArrayState() == globalVas,
+                  "LayerDrawableGL3 batched draw restores global VertexArrayState");
+
+            osg::GLExtensions* ext = state->get<osg::GLExtensions>();
+            check(ext != nullptr && ext->glBindVertexArray != nullptr, "GLExtensions::glBindVertexArray is available");
+            if (ext != nullptr && ext->glBindVertexArray != nullptr)
+            {
+                static decltype(ext->glBindVertexArray) sRealBindVao = nullptr;
+                static unsigned int sBindVaoNonZeroCalls = 0u;
+                struct BindVaoHook
+                {
+                    osg::GLExtensions* e;
+                    decltype(ext->glBindVertexArray) orig;
+                    static void APIENTRY hooked(GLuint array)
+                    {
+                        if (array != 0u)
+                        {
+                            ++sBindVaoNonZeroCalls;
+                        }
+                        sRealBindVao(array);
+                    }
+                    explicit BindVaoHook(osg::GLExtensions* ex) : e(ex), orig(ex->glBindVertexArray)
+                    {
+                        sRealBindVao = orig;
+                        sBindVaoNonZeroCalls = 0u;
+                        e->glBindVertexArray = &hooked;
+                    }
+                    ~BindVaoHook()
+                    {
+                        e->glBindVertexArray = orig;
+                        sRealBindVao = nullptr;
+                    }
+                };
+
+                {
+                    BindVaoHook vaoHook(ext);
+                    errCb->errors.clear();
+                    viewer.frame(2.2);
+                }
+                std::vector<unsigned char> frameC(readback->data(), readback->data() + readback->getTotalSizeInBytes());
+                check(frameC == frameA, "VAO-hooked settled frame remains byte-identical");
+                check(errCb->errors.empty(), "zero GL errors during VAO-hooked settled frame");
+                std::ostringstream vaoMsg;
+                vaoMsg << "LayerDrawableGL3 batches SharedGeometry VAO binds across tiles "
+                       << "(nonZeroVaoBinds=" << sBindVaoNonZeroCalls << ", resident=" << residentA << ")";
+                // Unbatched per-tile drawing binds the SharedGeometry VAO once per drawn tile
+                // (plus LayerDrawable's own global/outer VAO). With batched VAO reuse across
+                // same-geometry LOD-1 tiles, non-zero VAO binds stay <= 2 even when multiple tiles draw.
+                check(sBindVaoNonZeroCalls > 0u && (residentA <= 2u || sBindVaoNonZeroCalls < residentA), vaoMsg.str());
+                check(state->getCurrentVertexArrayState() == globalVas,
+                      "VAO-hooked settled frame leaves global VertexArrayState restored");
+            }
+
+            gc->makeCurrent();
+
+            check(ext != nullptr && ext->glUseProgram != nullptr, "GLExtensions::glUseProgram is available");
+            if (ext != nullptr && ext->glUseProgram != nullptr)
+            {
+                static decltype(ext->glUseProgram) sRealUseProgram = nullptr;
+                static unsigned int sUseProgramCalls = 0u;
+                struct UseProgramHook
+                {
+                    osg::GLExtensions* e;
+                    decltype(ext->glUseProgram) orig;
+                    static void APIENTRY hooked(GLuint program)
+                    {
+                        ++sUseProgramCalls;
+                        sRealUseProgram(program);
+                    }
+                    explicit UseProgramHook(osg::GLExtensions* ex) : e(ex), orig(ex->glUseProgram)
+                    {
+                        sRealUseProgram = orig;
+                        sUseProgramCalls = 0u;
+                        e->glUseProgram = &hooked;
+                    }
+                    ~UseProgramHook()
+                    {
+                        e->glUseProgram = orig;
+                        sRealUseProgram = nullptr;
+                    }
+                } hook(ext);
+
+                osg::ref_ptr<osgEarth::VirtualProgram> vp = new osgEarth::VirtualProgram();
+                vp->setName("cut2c_vp_dedup_test");
+                vp->setFunction(
+                    "cut2c_frag",
+                    "void cut2c_frag(inout vec4 color) { color = vec4(0.25, 0.5, 0.75, 1.0); }",
+                    osgEarth::VirtualProgram::LOCATION_FRAGMENT_COLORING);
+
+                osg::ref_ptr<osg::StateSet> ss = new osg::StateSet();
+                ss->setAttributeAndModes(vp.get(), osg::StateAttribute::ON);
+                state->pushStateSet(ss.get());
+                state->apply();
+
+                const osg::Program::PerContextProgram* pcp1 = state->getLastAppliedProgramObject();
+                GLint boundProg1 = 0;
+                glGetIntegerv(GL_CURRENT_PROGRAM, &boundProg1);
+                check(pcp1 != nullptr && boundProg1 != 0, "VirtualProgram linked and bound a non-zero GL program");
+
+                sUseProgramCalls = 0u;
+                vp->apply(*state);
+                const osg::Program::PerContextProgram* pcp2 = state->getLastAppliedProgramObject();
+                std::ostringstream dedupMsg;
+                dedupMsg << "consecutive VirtualProgram::apply() skips redundant glUseProgram (calls="
+                         << sUseProgramCalls << ")";
+                check(pcp2 == pcp1 && sUseProgramCalls == 0u, dedupMsg.str());
+
+                // Confirm a same-PCP relink request still links and calls glUseProgram.
+                const_cast<osg::Program::PerContextProgram*>(pcp1)->requestLink();
+                sUseProgramCalls = 0u;
+                vp->apply(*state);
+                std::ostringstream relinkMsg;
+                relinkMsg << "VirtualProgram::apply() relinks and rebinds when pcp->needsLink() is set (calls="
+                          << sUseProgramCalls << ")";
+                check(state->getLastAppliedProgramObject() == pcp1 && !pcp1->needsLink() && sUseProgramCalls == 1u,
+                      relinkMsg.str());
+
+                // Confirm external haveAppliedAttribute(PROGRAM) still forces a rebind on next apply.
+                state->haveAppliedAttribute(osg::StateAttribute::PROGRAM);
+                check(state->getLastAppliedProgramObject() == nullptr,
+                      "external haveAppliedAttribute(PROGRAM) invalidates _lastAppliedProgramObject");
+                sUseProgramCalls = 0u;
+                vp->apply(*state);
+                std::ostringstream rebindMsg;
+                rebindMsg << "VirtualProgram::apply() rebinds after external invalidation (calls="
+                          << sUseProgramCalls << ")";
+                check(state->getLastAppliedProgramObject() == pcp1 && sUseProgramCalls == 1u, rebindMsg.str());
+
+                state->popStateSet();
+                state->apply();
+                vp->releaseGLObjects(state);
+            }
+        }
+        gc->releaseContext();
+    }
 
     // Clean teardown.
     if (engine != nullptr)

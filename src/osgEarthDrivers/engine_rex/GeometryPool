@@ -120,6 +120,10 @@ namespace osgEarth
 
             void drawImplementation(osg::RenderInfo& renderInfo) const override;
 
+            bool canUseBatchedVAO(osg::State& state) const;
+            void bindBatchedVAO(osg::RenderInfo& renderInfo) const;
+            void drawPrimitivesBatched(osg::RenderInfo& renderInfo, bool drawPatch) const;
+
             void resizeGLObjectBuffers(unsigned int maxSize) override;
 
             void releaseGLObjects(osg::State* state) const override;

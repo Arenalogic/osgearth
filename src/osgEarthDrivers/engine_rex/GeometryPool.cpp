@@ -592,6 +592,63 @@ void SharedGeometry::drawImplementation(osg::RenderInfo& renderInfo) const
     }
 }
 
+bool SharedGeometry::canUseBatchedVAO(osg::State& state) const
+{
+    if (!_drawElements.valid() || _drawCallback.valid())
+        return false;
+    if (!state.useVertexBufferObject(_supportsVertexBufferObjects && _useVertexBufferObjects))
+        return false;
+    if (!state.useVertexArrayObject(_useVertexArrayObject))
+        return false;
+    if (_normalArray.valid() && _normalArray->getBinding() != osg::Array::BIND_PER_VERTEX)
+        return false;
+    if (_colorArray.valid() && _colorArray->getBinding() != osg::Array::BIND_PER_VERTEX)
+        return false;
+    return true;
+}
+
+void SharedGeometry::bindBatchedVAO(osg::RenderInfo& renderInfo) const
+{
+    osg::State& state = *renderInfo.getState();
+    const unsigned int contextID = renderInfo.getContextID();
+    osg::VertexArrayState* vas = _vertexArrayStateList[contextID].get();
+    if (!vas)
+    {
+        _vertexArrayStateList[contextID] = vas = createVertexArrayState(renderInfo);
+    }
+    state.setCurrentVertexArrayState(vas);
+    state.bindVertexArrayObject(vas);
+    vas->setVertexBufferObjectSupported(true);
+    if (vas->getRequiresSetArrays())
+    {
+        drawVertexArraysImplementation(renderInfo);
+        vas->setRequiresSetArrays(getDataVariance() == osg::Object::DYNAMIC);
+    }
+    else
+    {
+        // Always ensure the EBO is compiled/up-to-date and bound on the active VAO
+        // even when vertex attribute pointers were already recorded, so dirtied or
+        // recreated element buffers cannot draw stale data.
+        osg::GLBufferObject* ebo = _drawElements->getOrCreateGLBufferObject(GLUtils::getSharedContextID(state));
+        if (ebo)
+        {
+            state.bindElementBufferObject(ebo);
+        }
+    }
+}
+
+void SharedGeometry::drawPrimitivesBatched(osg::RenderInfo& renderInfo, bool drawPatch) const
+{
+    osg::State& state = *renderInfo.getState();
+    const auto cid = GLUtils::getSharedContextID(state);
+    _ptype[cid] = drawPatch ? GL_PATCHES : _drawElements->getMode();
+    if (state.getCheckForGLErrors() == osg::State::ONCE_PER_ATTRIBUTE)
+    {
+        state.checkGLErrors("start of SharedGeometry::drawPrimitivesBatched()");
+    }
+    drawPrimitivesImplementation(renderInfo);
+}
+
 void SharedGeometry::accept(osg::Drawable::AttributeFunctor& af)
 {
     osg::AttributeFunctorArrayVisitor afav(af);

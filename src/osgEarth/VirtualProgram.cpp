@@ -1340,6 +1340,14 @@ VirtualProgram::apply(osg::State& state) const
     // stack-memory construct below which will "remember" whether 
     // the VP has already been applied during the current frame using
     // the same an identical attribute stack.
+    // Capture the previous PerContextProgram pointer BEFORE invalidating OSG's
+    // PROGRAM attribute cache. Our OSG 3.6.5#61 fork clears _lastAppliedProgramObject
+    // inside haveAppliedAttribute(PROGRAM) for external GL callers; we must NOT
+    // restore prevPCP immediately (it could be stale if a prior Program was released
+    // with releaseGLObjects(nullptr)). Instead, we compare prevPCP by pointer identity
+    // against the live resolved pcp below and only restore _lastAppliedProgramObject
+    // once pcp == prevPCP proves it is alive and still bound.
+    const osg::Program::PerContextProgram* prevPCP = state.getLastAppliedProgramObject();
     state.haveAppliedAttribute(this->SA_TYPE);
 
     // We need to tracks whether there are any accept callbacks, because if so
@@ -1492,7 +1500,7 @@ VirtualProgram::apply(osg::State& state) const
 
         pcp = program->getPCP(state);
 
-        bool useProgram = state.getLastAppliedProgramObject() != pcp;
+        bool useProgram = (prevPCP != pcp) || pcp->needsLink();
         if (useProgram)
         {
             OE_PROFILING_ZONE_NAMED("use");
@@ -1537,6 +1545,13 @@ VirtualProgram::apply(osg::State& state) const
                     x.dumpErrors(state);
                 }
             }
+        }
+        else
+        {
+            // pcp == prevPCP and is guaranteed alive via `program`; repopulate OSG's
+            // cached pointer cleared by haveAppliedAttribute(PROGRAM) above so
+            // subsequent applies (and DrawState) see the bound program.
+            state.setLastAppliedProgramObject(pcp);
         }
 
 #ifdef USE_LAST_USED_PROGRAM
